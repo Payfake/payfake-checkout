@@ -5,6 +5,7 @@ import {
   Outlet,
 } from "@tanstack/react-router";
 import { ErrorDisplay } from "../components/checkout/ErrorDisplay";
+import { LoadingDisplay } from "../components/loader/LoadingDisplay";
 import appCss from "../styles/app.css?url";
 
 export const Route = createRootRoute({
@@ -20,7 +21,7 @@ export const Route = createRootRoute({
       {
         rel: "preconnect",
         href: "https://fonts.gstatic.com",
-        crossOrigin: "anonymous",
+        crossOrigin: "anonymous" as const,
       },
       {
         rel: "stylesheet",
@@ -29,9 +30,10 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootDocument,
+  pendingComponent: LoadingDisplay,
   notFoundComponent: () => (
     <ErrorDisplay
-      message="Page not found"
+      message="Payment link not found"
       onRetry={() => window.history.back()}
     />
   ),
@@ -45,11 +47,11 @@ export const Route = createRootRoute({
 
 function RootDocument() {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
-      <body className="font-sans antialiased text-white">
+      <body className="font-sans antialiased bg-white text-black">
         <Outlet />
         <Scripts />
       </body>

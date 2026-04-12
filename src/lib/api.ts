@@ -1,12 +1,24 @@
 import { api } from "#/utils/axios";
 
 export interface CheckoutData {
-  access_code: string;
-  amount: number;
-  currency: string;
-  email: string;
-  merchant_name: string;
-  status: string;
+  message: string;
+  data: {
+    access_code: string;
+    amount: number;
+    currency: string;
+    status: string;
+    reference: string;
+    callback_url: string;
+    merchant: {
+      business_name: string;
+      public_key: string;
+    };
+    customer: {
+      email: string;
+      first_name: string;
+      last_name: string;
+    };
+  };
 }
 
 export interface PaymentResult {
@@ -22,10 +34,8 @@ export interface PaymentResult {
 }
 
 export const checkoutApi = {
-  getTransaction: async (
-    access_code: string,
-  ): Promise<{ data: CheckoutData }> => {
-    const response = await api.get(`/public/transaction/${access_code}`);
+  getTransaction: async (accessCode: string): Promise<CheckoutData> => {
+    const response = await api.get(`/public/transaction/${accessCode}`);
     return response.data;
   },
 

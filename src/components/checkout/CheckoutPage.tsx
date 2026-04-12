@@ -17,6 +17,8 @@ interface CheckoutPageProps {
     email: string;
     merchant_name: string;
     status: string;
+    customer_name?: string;
+    callback_url?: string;
   };
 }
 
@@ -49,6 +51,8 @@ export function CheckoutPage({ transaction }: CheckoutPageProps) {
 
       setResult(response);
       setState("success");
+
+      console.log("Response: ", response);
 
       if (window.parent !== window) {
         window.parent.postMessage(
@@ -95,6 +99,7 @@ export function CheckoutPage({ transaction }: CheckoutPageProps) {
         amount={transaction.amount}
         currency={transaction.currency}
         reference={result.data.transaction.reference}
+        callbackUrl={transaction.callback_url}
       />
     );
   }
@@ -127,6 +132,11 @@ export function CheckoutPage({ transaction }: CheckoutPageProps) {
           <p className="text-4xl font-light text-black mb-1 tracking-tight">
             {formatAmount(transaction.amount, transaction.currency)}
           </p>
+          {transaction.customer_name && (
+            <p className="text-sm text-gray-600 mb-0.5">
+              {transaction.customer_name}
+            </p>
+          )}
           <p className="text-sm text-gray-500">{transaction.email}</p>
         </div>
 
