@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Check, Copy } from "lucide-react";
+import { Check, CheckCircle, Copy } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface SuccessDisplayProps {
@@ -7,6 +7,7 @@ interface SuccessDisplayProps {
   currency: string;
   reference: string;
   callbackUrl?: string;
+  message?: string;
 }
 
 export function SuccessDisplay({
@@ -14,6 +15,7 @@ export function SuccessDisplay({
   currency,
   reference,
   callbackUrl,
+  message,
 }: SuccessDisplayProps) {
   const [copied, setCopied] = useState(false);
   const [countdown, setCountdown] = useState(5);
@@ -32,7 +34,6 @@ export function SuccessDisplay({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Handle callback redirect
   useEffect(() => {
     if (!callbackUrl) return;
 
@@ -40,7 +41,6 @@ export function SuccessDisplay({
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          // Append transaction reference to callback URL
           const separator = callbackUrl.includes("?") ? "&" : "?";
           window.location.href = `${callbackUrl}${separator}reference=${reference}&trxref=${reference}&status=success`;
           return 0;
@@ -99,6 +99,17 @@ export function SuccessDisplay({
             Payment Successful
           </motion.h1>
 
+          {message && (
+            <motion.p
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.18 }}
+              className="text-sm text-gray-500 mb-4"
+            >
+              {message}
+            </motion.p>
+          )}
+
           <motion.p
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
@@ -129,7 +140,7 @@ export function SuccessDisplay({
                     animate={{ scale: 1 }}
                     className="text-xs text-green-600 font-medium"
                   >
-                    Copied
+                    <CheckCircle className="w-4 h-4 text-green-500" />
                   </motion.span>
                 ) : (
                   <Copy className="w-4 h-4 text-gray-500" />

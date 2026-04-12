@@ -51,7 +51,10 @@ function RootDocument() {
       <head>
         <HeadContent />
       </head>
-      <body className="font-sans antialiased bg-white text-black">
+      <body
+        className="font-sans antialiased bg-white text-black"
+        suppressHydrationWarning
+      >
         <Outlet />
         <Scripts />
       </body>
