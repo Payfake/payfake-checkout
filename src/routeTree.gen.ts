@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AccessCodeRouteImport } from './routes/$accessCode'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as Simulate3dsReferenceRouteImport } from './routes/simulate.3ds.$reference'
 
 const AccessCodeRoute = AccessCodeRouteImport.update({
   id: '/$accessCode',
@@ -22,31 +23,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Simulate3dsReferenceRoute = Simulate3dsReferenceRouteImport.update({
+  id: '/simulate/3ds/$reference',
+  path: '/simulate/3ds/$reference',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$accessCode': typeof AccessCodeRoute
+  '/simulate/3ds/$reference': typeof Simulate3dsReferenceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$accessCode': typeof AccessCodeRoute
+  '/simulate/3ds/$reference': typeof Simulate3dsReferenceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$accessCode': typeof AccessCodeRoute
+  '/simulate/3ds/$reference': typeof Simulate3dsReferenceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/$accessCode'
+  fullPaths: '/' | '/$accessCode' | '/simulate/3ds/$reference'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$accessCode'
-  id: '__root__' | '/' | '/$accessCode'
+  to: '/' | '/$accessCode' | '/simulate/3ds/$reference'
+  id: '__root__' | '/' | '/$accessCode' | '/simulate/3ds/$reference'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccessCodeRoute: typeof AccessCodeRoute
+  Simulate3dsReferenceRoute: typeof Simulate3dsReferenceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/simulate/3ds/$reference': {
+      id: '/simulate/3ds/$reference'
+      path: '/simulate/3ds/$reference'
+      fullPath: '/simulate/3ds/$reference'
+      preLoaderRoute: typeof Simulate3dsReferenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccessCodeRoute: AccessCodeRoute,
+  Simulate3dsReferenceRoute: Simulate3dsReferenceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

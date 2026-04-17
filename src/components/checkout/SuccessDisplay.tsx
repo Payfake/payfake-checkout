@@ -64,7 +64,7 @@ export function SuccessDisplay({
           <div className="flex items-center gap-3">
             <div className="w-15 h-15 rounded-md flex items-center justify-center overflow-hidden">
               <img
-                src="/logo.JPG"
+                src="/logo.jpeg"
                 alt="Payfake"
                 className="w-15 h-15 object-contain"
               />

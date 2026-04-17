@@ -17,11 +17,11 @@ export function ErrorDisplay({ message, onRetry }: ErrorDisplayProps) {
       >
         <div className="mb-10">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-black rounded-md flex items-center justify-center overflow-hidden">
+            <div className="w-10 h-10 rounded-md flex items-center justify-center overflow-hidden">
               <img
-                src="/logo.JPG"
+                src="/logo.jpeg"
                 alt="Payfake"
-                className="w-5 h-5 object-contain"
+                className="w-10 h-10 object-contain"
               />
             </div>
             <span className="text-sm font-medium text-gray-600 tracking-wide">

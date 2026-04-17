@@ -1,4 +1,5 @@
 import { api } from "#/utils/axios";
+import type { ChargeResponse } from "./flow-types";
 
 export interface CheckoutData {
   message: string;
@@ -34,7 +35,9 @@ export interface PaymentResult {
 }
 
 export const checkoutApi = {
-  getTransaction: async (accessCode: string): Promise<CheckoutData> => {
+  getTransaction: async (
+    accessCode: string,
+  ): Promise<{ data: CheckoutData }> => {
     const response = await api.get(`/public/transaction/${accessCode}`);
     return response.data;
   },
@@ -45,7 +48,7 @@ export const checkoutApi = {
     card_expiry: string;
     cvv: string;
     email: string;
-  }): Promise<PaymentResult> => {
+  }): Promise<ChargeResponse> => {
     const response = await api.post("/public/charge/card", data);
     return response.data;
   },
@@ -55,8 +58,33 @@ export const checkoutApi = {
     phone: string;
     provider: string;
     email: string;
-  }): Promise<PaymentResult> => {
+  }): Promise<ChargeResponse> => {
     const response = await api.post("/public/charge/mobile_money", data);
+    return response.data;
+  },
+
+  submitFlow: async (endpoint: string, data: any): Promise<ChargeResponse> => {
+    const response = await api.post(`/public/charge${endpoint}`, data);
+    return response.data;
+  },
+
+  resendOtp: async (reference: string): Promise<ChargeResponse> => {
+    const response = await api.post("/public/charge/resend_otp", { reference });
+    return response.data;
+  },
+
+  simulate3DS: async (
+    reference: string,
+    data: any,
+  ): Promise<ChargeResponse> => {
+    const response = await api.post(`/public/simulate/3ds/${reference}`, data);
+    return response.data;
+  },
+
+  verifyTransaction: async (
+    reference: string,
+  ): Promise<{ data: { status: string } }> => {
+    const response = await api.get(`/public/transaction/verify/${reference}`);
     return response.data;
   },
 };

@@ -1,13 +1,27 @@
+"use client";
+
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CreditCard, Smartphone, Lock } from "lucide-react";
 import { CardForm } from "./CardForm";
 import { MomoForm } from "./MomoForm";
+import { PinForm } from "./PinForm";
+import { OtpForm } from "./OtpForm";
+import { BirthdayForm } from "./BirthdayForm";
+import { AddressForm } from "./AddressForm";
+import { PayOfflineDisplay } from "./PayOfflineDisplay";
+import { ThreeDSFrame } from "./ThreeDSFrame";
 import { SuccessDisplay } from "./SuccessDisplay";
 import { checkoutApi } from "../../lib/api";
+import type { ChargeFlowStatus, ChargeResponse } from "#/lib/flow-types";
 
 type PaymentMethod = "card" | "momo";
-type PaymentState = "idle" | "processing" | "success" | "error";
+type CheckoutState =
+  | "method_selection"
+  | "processing"
+  | "flow"
+  | "success"
+  | "error";
 
 interface CheckoutPageProps {
   transaction: {
@@ -19,13 +33,16 @@ interface CheckoutPageProps {
     status: string;
     customer_name?: string;
     callback_url?: string;
+    reference: string;
   };
 }
 
 export function CheckoutPage({ transaction }: CheckoutPageProps) {
   const [method, setMethod] = useState<PaymentMethod>("card");
-  const [state, setState] = useState<PaymentState>("idle");
+  const [state, setState] = useState<CheckoutState>("method_selection");
   const [error, setError] = useState<string | null>(null);
+  const [flowStatus, setFlowStatus] = useState<ChargeFlowStatus | null>(null);
+  const [chargeData, setChargeData] = useState<ChargeResponse | null>(null);
   const [result, setResult] = useState<any>(null);
 
   const formatAmount = (amount: number, currency: string) => {
@@ -49,17 +66,7 @@ export function CheckoutPage({ transaction }: CheckoutPageProps) {
         email: transaction.email,
       });
 
-      setResult(response);
-      setState("success");
-
-      console.log("Response: ", response);
-
-      if (window.parent !== window) {
-        window.parent.postMessage(
-          { type: "PAYFAKE_SUCCESS", payload: response },
-          "*",
-        );
-      }
+      handleChargeResponse(response);
     } catch (err: any) {
       setState("error");
       setError(err.response?.data?.message || "Payment failed");
@@ -78,27 +85,144 @@ export function CheckoutPage({ transaction }: CheckoutPageProps) {
         email: transaction.email,
       });
 
-      setResult(response);
-      setState("success");
-
-      if (window.parent !== window) {
-        window.parent.postMessage(
-          { type: "PAYFAKE_SUCCESS", payload: response },
-          "*",
-        );
-      }
+      handleChargeResponse(response);
     } catch (err: any) {
       setState("error");
       setError(err.response?.data?.message || "Payment failed");
     }
   };
 
+  const handleChargeResponse = (response: ChargeResponse) => {
+    const flow = response.data.charge.flow_status;
+    const displayText = response.data.display_text;
+
+    if (flow === "success") {
+      setResult(response);
+      setState("success");
+      return;
+    }
+
+    if (flow === "failed") {
+      setState("error");
+      setError(displayText || "Payment failed");
+      return;
+    }
+
+    setChargeData(response);
+    setFlowStatus(flow);
+    setState("flow");
+  };
+
+  const handleFlowSubmit = async (endpoint: string, data: any) => {
+    setState("processing");
+    setError(null);
+
+    try {
+      if (!chargeData) return;
+
+      const response = await checkoutApi.submitFlow(endpoint, {
+        reference: chargeData.data.reference,
+        ...data,
+      });
+
+      handleChargeResponse(response);
+    } catch (err: any) {
+      setState("flow");
+      setError(err.response?.data?.message || "Verification failed");
+    }
+  };
+
+  const handleThreeDSComplete = (response: ChargeResponse) => {
+    handleChargeResponse(response);
+  };
+
+  const getEndpointForFlow = (flow: ChargeFlowStatus): string => {
+    switch (flow) {
+      case "send_pin":
+        return "/submit_pin";
+      case "send_otp":
+        return "/submit_otp";
+      case "send_birthday":
+        return "/submit_birthday";
+      case "send_address":
+        return "/submit_address";
+      default:
+        return "";
+    }
+  };
+
+  const renderFlowStep = () => {
+    if (!flowStatus || !chargeData) return null;
+
+    const commonProps = {
+      onSubmit: (data: any) =>
+        handleFlowSubmit(getEndpointForFlow(flowStatus), data),
+      isProcessing: state === "processing",
+      displayText: chargeData.data.display_text,
+      phone: chargeData.data.charge.momo_phone,
+    };
+
+    switch (flowStatus) {
+      case "send_pin":
+        return <PinForm {...commonProps} />;
+      case "send_otp":
+        return <OtpForm {...commonProps} />;
+      case "send_birthday":
+        return <BirthdayForm {...commonProps} />;
+      case "send_address":
+        return <AddressForm {...commonProps} />;
+      case "open_url":
+        return (
+          <ThreeDSFrame
+            url={chargeData.data.three_ds_url!}
+            reference={chargeData.data.reference}
+            onComplete={handleThreeDSComplete}
+          />
+        );
+      case "pay_offline":
+        return (
+          <PayOfflineDisplay
+            displayText={chargeData.data.display_text}
+            reference={chargeData.data.reference}
+            onPoll={(status) => {
+              if (status === "success") {
+                const successResponse = {
+                  data: {
+                    transaction: {
+                      reference: chargeData.data.reference,
+                      status: "success",
+                      amount: transaction.amount,
+                    },
+                  },
+                };
+                setResult(successResponse);
+                setState("success");
+
+                if (window.parent !== window) {
+                  window.parent.postMessage(
+                    { type: "PAYFAKE_SUCCESS", payload: successResponse },
+                    "*",
+                  );
+                }
+              } else if (status === "failed") {
+                setState("error");
+                setError("Payment was not completed");
+              }
+            }}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Success state
   if (state === "success" && result) {
     return (
       <SuccessDisplay
         amount={transaction.amount}
         currency={transaction.currency}
-        reference={result.data.transaction.reference}
+        reference={result.data?.transaction?.reference || transaction.reference}
         callbackUrl={transaction.callback_url}
       />
     );
@@ -114,9 +238,9 @@ export function CheckoutPage({ transaction }: CheckoutPageProps) {
       >
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-15 h-15  rounded-md flex items-center justify-center overflow-hidden">
+            <div className="w-15 h-15 rounded-md flex items-center justify-center overflow-hidden">
               <img
-                src="/logo.JPG"
+                src="/logo.jpeg"
                 alt="Payfake"
                 className="w-15 h-15 object-contain"
               />
@@ -140,79 +264,112 @@ export function CheckoutPage({ transaction }: CheckoutPageProps) {
           <p className="text-sm text-gray-500">{transaction.email}</p>
         </div>
 
-        <div className="flex gap-2 mb-8">
-          <motion.button
-            whileHover={{ borderColor: "#000000" }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setMethod("card")}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium rounded-lg border transition-all duration-200 cursor-pointer ${
-              method === "card"
-                ? "border-black bg-black text-white"
-                : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-            }`}
-          >
-            <CreditCard className="w-4 h-4" />
-            Card
-          </motion.button>
-          <motion.button
-            whileHover={{ borderColor: "#000000" }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setMethod("momo")}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium rounded-lg border transition-all duration-200 cursor-pointer ${
-              method === "momo"
-                ? "border-black bg-black text-white"
-                : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-            }`}
-          >
-            <Smartphone className="w-4 h-4" />
-            Mobile Money
-          </motion.button>
-        </div>
+        {state === "method_selection" && (
+          <>
+            <div className="flex gap-2 mb-8">
+              <motion.button
+                whileHover={{ borderColor: "#000000" }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setMethod("card")}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium rounded-lg border transition-all duration-200 cursor-pointer ${
+                  method === "card"
+                    ? "border-black bg-black text-white"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <CreditCard className="w-4 h-4" />
+                Card
+              </motion.button>
+              <motion.button
+                whileHover={{ borderColor: "#000000" }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setMethod("momo")}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium rounded-lg border transition-all duration-200 cursor-pointer ${
+                  method === "momo"
+                    ? "border-black bg-black text-white"
+                    : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <Smartphone className="w-4 h-4" />
+                Mobile Money
+              </motion.button>
+            </div>
 
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-6 overflow-hidden"
-            >
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            <AnimatePresence mode="wait">
+              {method === "card" ? (
+                <motion.div
+                  key="card"
+                  initial={{ opacity: 0, x: -4 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <CardForm
+                    onSubmit={handleCardSubmit}
+                    isProcessing={state === "processing"}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="momo"
+                  initial={{ opacity: 0, x: 4 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <MomoForm
+                    onSubmit={handleMomoSubmit}
+                    isProcessing={state === "processing"}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </>
+        )}
 
-        <AnimatePresence mode="wait">
-          {method === "card" ? (
+        {state === "flow" && (
+          <AnimatePresence mode="wait">
             <motion.div
-              key="card"
-              initial={{ opacity: 0, x: -4 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 4 }}
-              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+              key={flowStatus}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
             >
-              <CardForm
-                onSubmit={handleCardSubmit}
-                isProcessing={state === "processing"}
-              />
+              {renderFlowStep()}
             </motion.div>
-          ) : (
-            <motion.div
-              key="momo"
-              initial={{ opacity: 0, x: 4 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -4 }}
-              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            >
-              <MomoForm
-                onSubmit={handleMomoSubmit}
-                isProcessing={state === "processing"}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </AnimatePresence>
+        )}
+
+        {state === "processing" && (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-200 border-t-black mx-auto mb-4" />
+            <p className="text-sm text-gray-500">Processing...</p>
+          </div>
+        )}
+
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            className="mt-4"
+          >
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+              <button
+                onClick={() => {
+                  setState("method_selection");
+                  setError(null);
+                  setChargeData(null);
+                  setFlowStatus(null);
+                }}
+                className="mt-2 text-sm text-black hover:underline cursor-pointer"
+              >
+                Try again
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0 }}
