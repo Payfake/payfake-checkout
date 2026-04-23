@@ -1,11 +1,10 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Smartphone } from "lucide-react";
 
 interface OtpFormProps {
   onSubmit: (data: { otp: string }) => void;
+  onResend: () => Promise<void>;
   isProcessing: boolean;
   displayText: string;
   phone?: string;
@@ -13,12 +12,14 @@ interface OtpFormProps {
 
 export function OtpForm({
   onSubmit,
+  onResend,
   isProcessing,
   displayText,
   phone,
 }: OtpFormProps) {
   const [otp, setOtp] = useState("");
   const [timer, setTimer] = useState(60);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -31,6 +32,14 @@ export function OtpForm({
     if (otp.length >= 4) {
       onSubmit({ otp });
     }
+  };
+
+  const handleResend = async () => {
+    if (timer > 0) return;
+    setResending(true);
+    await onResend();
+    setTimer(60);
+    setResending(false);
   };
 
   const formatPhone = (phone?: string) => {
@@ -62,12 +71,15 @@ export function OtpForm({
           className="w-full px-4 py-3 text-center text-2xl tracking-widest bg-white border border-gray-200 rounded-lg focus:border-black outline-none transition-colors"
           placeholder="000000"
           autoFocus
+          disabled={isProcessing}
         />
       </div>
 
       <motion.button
-        whileHover={{ backgroundColor: "#1a1a1a" }}
-        whileTap={{ scale: 0.98 }}
+        whileHover={
+          !isProcessing && otp.length >= 4 ? { backgroundColor: "#1a1a1a" } : {}
+        }
+        whileTap={!isProcessing && otp.length >= 4 ? { scale: 0.98 } : {}}
         onClick={handleSubmit}
         disabled={isProcessing || otp.length < 4}
         className={`w-full py-3.5 px-4 rounded-lg font-medium text-base transition-all duration-200 cursor-pointer ${
@@ -83,8 +95,13 @@ export function OtpForm({
         Didn't receive code?{" "}
         {timer > 0 ? (
           <span className="text-gray-400">Resend in {timer}s</span>
+        ) : resending ? (
+          <span className="text-gray-400">Sending...</span>
         ) : (
-          <button className="text-black hover:underline cursor-pointer">
+          <button
+            onClick={handleResend}
+            className="text-black hover:underline cursor-pointer"
+          >
             Resend OTP
           </button>
         )}

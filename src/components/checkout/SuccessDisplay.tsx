@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Check, CheckCircle, Copy } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface SuccessDisplayProps {
@@ -23,7 +23,7 @@ export function SuccessDisplay({
   const formatAmount = (amount: number, currency: string) => {
     return new Intl.NumberFormat("en-GH", {
       style: "currency",
-      currency: currency,
+      currency,
       minimumFractionDigits: 2,
     }).format(amount / 100);
   };
@@ -36,7 +36,6 @@ export function SuccessDisplay({
 
   useEffect(() => {
     if (!callbackUrl) return;
-
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -48,7 +47,6 @@ export function SuccessDisplay({
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
   }, [callbackUrl, reference]);
 
@@ -140,7 +138,7 @@ export function SuccessDisplay({
                     animate={{ scale: 1 }}
                     className="text-xs text-green-600 font-medium"
                   >
-                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Copied
                   </motion.span>
                 ) : (
                   <Copy className="w-4 h-4 text-gray-500" />

@@ -22,7 +22,6 @@ export const Route = createFileRoute("/$accessCode")({
           ? `${tx.customer.first_name} ${tx.customer.last_name}`
           : undefined;
 
-      // Return everything, let the component decide what to show
       return {
         transaction: {
           access_code: tx.access_code,
@@ -51,7 +50,6 @@ export const Route = createFileRoute("/$accessCode")({
         error.response?.data?.message ||
         error.message ||
         "Unable to load payment details";
-
       throw new Error(message);
     }
   },
@@ -71,19 +69,17 @@ export const Route = createFileRoute("/$accessCode")({
 function RouteComponent() {
   const { transaction, message } = Route.useLoaderData();
 
-  // If already successful, show success page directly
   if (transaction.status === "success") {
     return (
       <SuccessDisplay
         amount={transaction.amount}
         currency={transaction.currency}
         reference={transaction.reference}
-        // callbackUrl={transaction.callback_url}
+        callbackUrl={transaction.callback_url}
         message={message}
       />
     );
   }
 
-  // Otherwise show the checkout form
   return <CheckoutPage transaction={transaction} />;
 }

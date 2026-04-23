@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import { checkoutApi } from "../../lib/api";
-import type { ChargeResponse } from "#/lib/flow-types";
 
 interface ThreeDSFrameProps {
   url: string;
   reference: string;
-  onComplete: (response: ChargeResponse) => void;
+  onComplete: () => void;
 }
 
 export function ThreeDSFrame({
@@ -16,22 +14,14 @@ export function ThreeDSFrame({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const handleMessage = async (event: MessageEvent) => {
+    const handleMessage = (event: MessageEvent) => {
       if (
         event.data?.type === "3DS_COMPLETE" &&
         event.data?.payload?.reference === reference
       ) {
-        try {
-          const response = await checkoutApi.simulate3DS(reference, {
-            success: event.data.payload.success,
-          });
-          onComplete(response);
-        } catch (error) {
-          console.error("3DS simulation failed:", error);
-        }
+        onComplete();
       }
     };
-
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, [reference, onComplete]);

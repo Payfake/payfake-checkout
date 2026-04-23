@@ -1,15 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Phone,
-  ChevronDown,
-  Check,
-  AlertCircle,
-  CheckCircle,
-} from "lucide-react";
+import { Phone, ChevronDown, Check, AlertCircle } from "lucide-react";
 
 interface MomoFormProps {
-  onSubmit: (data: any) => void;
+  onSubmit: (data: { phone: string; provider: string }) => void;
   isProcessing: boolean;
 }
 
@@ -17,14 +11,19 @@ const providers = [
   {
     id: "mtn",
     name: "MTN",
-    prefix: ["024", "054", "055", "059"],
+    prefix: ["024", "025", "053", "054", "055", "059"],
     color: "#FFC403",
   },
-  { id: "vodafone", name: "Telecel", prefix: ["020", "050"], color: "#E60000" },
+  {
+    id: "vodafone",
+    name: "Telecel",
+    prefix: ["020", "050"],
+    color: "#E60000",
+  },
   {
     id: "airteltigo",
     name: "AT",
-    prefix: ["026", "056", "057"],
+    prefix: ["026", "027", "056", "057"],
     color: "#0078D7",
   },
 ];
@@ -42,77 +41,51 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
   const validatePhone = (
     value: string,
   ): { isValid: boolean; error: string | null } => {
-    // Remove all spaces
     const clean = value.replace(/\s+/g, "");
+    if (!clean) return { isValid: false, error: null };
 
-    // Empty is invalid
-    if (!clean) {
-      return { isValid: false, error: null };
-    }
-
-    // Check if it starts with 233 (international without +)
     if (clean.startsWith("233")) {
-      // Must be exactly 12 digits (233 + 9 digits)
-      if (clean.length !== 12) {
+      if (clean.length !== 12)
         return {
           isValid: false,
           error: clean.length > 12 ? "Number too long" : "Number too short",
         };
-      }
     } else if (clean.startsWith("0")) {
-      // Local format: must start with 0 and be exactly 10 digits
-      if (clean.length !== 10) {
+      if (clean.length !== 10)
         return {
           isValid: false,
           error: clean.length > 10 ? "Number too long" : "Number too short",
         };
-      }
     } else if (clean.startsWith("+233")) {
-      // With + sign: must be exactly 13 characters
-      if (clean.length !== 13) {
+      if (clean.length !== 13)
         return {
           isValid: false,
           error: clean.length > 13 ? "Number too long" : "Number too short",
         };
-      }
     } else {
-      return {
-        isValid: false,
-        error: "Must start with 0, 233, or +233",
-      };
+      return { isValid: false, error: "Must start with 0, 233, or +233" };
     }
 
-    // Check if it's only digits (after removing + if present)
     const digitsOnly = clean.replace(/^\+/, "");
-    if (!/^\d+$/.test(digitsOnly)) {
+    if (!/^\d+$/.test(digitsOnly))
       return { isValid: false, error: "Only numbers allowed" };
-    }
 
     return { isValid: true, error: null };
   };
 
   const formatPhone = (value: string): string => {
     const clean = value.replace(/\s+/g, "");
-
-    // Don't format if it starts with + or 233
-    if (clean.startsWith("+") || clean.startsWith("233")) {
-      return clean;
-    }
-
-    // Format local number: 024 412 3456
+    if (clean.startsWith("+") || clean.startsWith("233")) return clean;
     if (clean.startsWith("0") && clean.length >= 3) {
       return (
         clean.slice(0, 3) + " " + clean.slice(3, 6) + " " + clean.slice(6, 10)
       );
     }
-
     return clean;
   };
 
   const handlePhoneChange = (value: string) => {
     const raw = value.replace(/\s+/g, "");
-
-    // Enforce length limits
     if (raw.startsWith("+233")) {
       if (raw.length > 13) return;
     } else if (raw.startsWith("233")) {
@@ -123,36 +96,24 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
 
     const formatted = formatPhone(raw);
     setPhone(formatted);
-
-    // Validate
     const validation = validatePhone(raw);
     setIsValid(validation.isValid);
     setError(validation.error);
   };
 
-  // Auto-detect provider based on phone prefix
   useEffect(() => {
     const clean = phone.replace(/\s+/g, "");
-
-    // Get the local prefix (first 3 digits of local number)
     let prefix: string;
-    if (clean.startsWith("+233")) {
-      prefix = "0" + clean.substring(4, 6);
-    } else if (clean.startsWith("233")) {
-      prefix = "0" + clean.substring(3, 5);
-    } else if (clean.startsWith("0")) {
-      prefix = clean.substring(0, 3);
-    } else {
-      return;
-    }
+    if (clean.startsWith("+233")) prefix = "0" + clean.substring(4, 6);
+    else if (clean.startsWith("233")) prefix = "0" + clean.substring(3, 5);
+    else if (clean.startsWith("0")) prefix = clean.substring(0, 3);
+    else return;
 
     if (prefix.length === 3) {
       const matched = providers.find((p) => p.prefix.includes(prefix));
-
       if (matched && matched.id !== provider) {
         setDetectedProvider(matched.id);
         setProvider(matched.id);
-
         setTimeout(() => setDetectedProvider(null), 1500);
       }
     }
@@ -161,32 +122,19 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
   const handleSubmit = () => {
     const clean = phone.replace(/\s+/g, "");
     const validation = validatePhone(clean);
-
     if (!validation.isValid) {
       setError(validation.error || "Invalid phone number");
       return;
     }
 
-    // Format to standard +233 format for API
     let formattedPhone = clean;
-    if (clean.startsWith("0")) {
-      formattedPhone = "+233" + clean.substring(1);
-    } else if (clean.startsWith("233")) {
-      formattedPhone = "+" + clean;
-    }
+    if (clean.startsWith("0")) formattedPhone = "+233" + clean.substring(1);
+    else if (clean.startsWith("233")) formattedPhone = "+" + clean;
 
     onSubmit({ phone: formattedPhone, provider });
   };
 
   const selectedProvider = providers.find((p) => p.id === provider);
-
-  const getPlaceholder = () => {
-    return "024 412 3456";
-  };
-
-  const getHint = () => {
-    return "024 XXX XXXX, 233XXXXXXXXX, or +233XXXXXXXXX";
-  };
 
   return (
     <div className="space-y-5">
@@ -211,11 +159,10 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
             onChange={(e) => handlePhoneChange(e.target.value)}
             onFocus={() => setFocused("phone")}
             onBlur={() => setFocused(null)}
-            placeholder={getPlaceholder()}
+            placeholder="024 412 3456"
             className="w-full pl-10 pr-4 py-3 bg-transparent outline-none text-black placeholder:text-gray-400 text-base"
             disabled={isProcessing}
           />
-
           <AnimatePresence>
             {detectedProvider && !error && (
               <motion.div
@@ -239,7 +186,6 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
             )}
           </AnimatePresence>
         </div>
-
         <AnimatePresence>
           {error && phone && (
             <motion.div
@@ -253,11 +199,11 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
             </motion.div>
           )}
         </AnimatePresence>
-
         {!error && !phone && (
-          <p className="mt-1.5 text-xs text-gray-400">{getHint()}</p>
+          <p className="mt-1.5 text-xs text-gray-400">
+            024 XXX XXXX, 233XXXXXXXXX, or +233XXXXXXXXX
+          </p>
         )}
-
         <AnimatePresence>
           {isValid && !error && (
             <motion.div
@@ -266,7 +212,7 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
               exit={{ opacity: 0 }}
               className="mt-1.5 flex items-center gap-1.5 text-green-600"
             >
-              <CheckCircle className="w-3.5 h-3.5" />
+              <Check className="w-3.5 h-3.5" />
               <span className="text-xs">Valid number</span>
             </motion.div>
           )}
@@ -277,7 +223,6 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
         <label className="block text-sm font-medium text-gray-700 mb-1.5">
           Network
         </label>
-
         <motion.button
           whileHover={{ borderColor: "#d1d5db" }}
           type="button"
@@ -289,7 +234,7 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
         >
           <div className="flex items-center gap-3">
             <div
-              className="w-2.5 h-2.5 rounded-full transition-all duration-300"
+              className="w-2.5 h-2.5 rounded-full"
               style={{ backgroundColor: selectedProvider?.color }}
             />
             <span className="text-black font-medium">
@@ -297,9 +242,7 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
             </span>
           </div>
           <ChevronDown
-            className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${
-              isOpen ? "rotate-180" : ""
-            }`}
+            className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
           />
         </motion.button>
 
@@ -310,11 +253,9 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
                 className="fixed inset-0 z-10"
                 onClick={() => setIsOpen(false)}
               />
-
               <motion.div
                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -347,7 +288,6 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
                         {p.prefix.join(", ")}
                       </span>
                     </div>
-
                     {provider === p.id && (
                       <motion.div
                         initial={{ scale: 0 }}
@@ -377,12 +317,12 @@ export function MomoForm({ onSubmit, isProcessing }: MomoFormProps) {
         type="button"
         onClick={handleSubmit}
         disabled={isProcessing || !isValid}
-        className={`w-full py-3.5 px-4 rounded-lg font-medium text-base transition-all duration-200 ${
+        className={`w-full py-3.5 px-4 rounded-lg font-medium text-base transition-all duration-200 cursor-pointer ${
           isProcessing
             ? "bg-gray-400 text-white cursor-not-allowed"
             : !isValid
               ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "bg-black text-white hover:bg-gray-900 cursor-pointer"
+              : "bg-black text-white hover:bg-gray-900"
         }`}
       >
         {isProcessing ? (
